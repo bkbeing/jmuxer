@@ -2,6 +2,7 @@ import * as debug from './util/debug';
 import { NALU } from './util/nalu.js';
 import { H264Parser } from './parsers/h264.js';
 import { AACParser } from './parsers/aac.js';
+import { OpusParser } from './parsers/opus.js';
 import Event from './util/event';
 import RemuxController from './controller/remux.js';
 import BufferController from './controller/buffer.js';
@@ -25,7 +26,8 @@ export default class JMuxmer extends Event {
             clearBuffer: true,
             onReady: null, // function called when MSE is ready to accept frames
             fps: 30,
-            debug: false
+            debug: false,
+            audioCodec: AACParser.codec
         };
         this.options = Object.assign({}, defaults, options);
 
@@ -53,7 +55,7 @@ export default class JMuxmer extends Event {
 
         this.setupMSE();
         this.remuxController = new RemuxController(this.options.clearBuffer); 
-        this.remuxController.addTrack(this.options.mode);
+        this.remuxController.addTrack(this.options.mode, this.options.audioCodec);
         
 
         this.mseReady = false;
@@ -96,9 +98,14 @@ export default class JMuxmer extends Event {
             }
         }
         if (data.audio) {
-            aacFrames = AACParser.extractAAC(data.audio);
-            if (aacFrames.length > 0) {
-                chunks.audio = this.getAudioFrames(aacFrames, duration);
+            var frames = [];
+            if (this.options.audioCodec === AACParser.codec) {
+                frames = AACParser.extractAAC(data.audio);
+            } else if (this.options.audioCodec === OpusParser.codec) {
+                frames = OpusParser.extractOpus(data.audio);
+            }
+            if (frames.length > 0) {
+                chunks.audio = this.getAudioFrames(frames, duration);
                 remux = true;
             }
         }

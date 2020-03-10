@@ -1,3 +1,5 @@
+import * as debug from '../util/debug';
+
 /**
  * Generate MP4 Box
  * taken from: https://github.com/dailymotion/hls.js
@@ -22,6 +24,8 @@ export class MP4 {
             moof: [],
             moov: [],
             mp4a: [],
+            Opus: [],
+            dOps: [],
             mvex: [],
             mvhd: [],
             sdtp: [],
@@ -441,9 +445,49 @@ export class MP4 {
         MP4.box(MP4.types.esds, MP4.esds(track)));
     }
 
+    // https://www.opus-codec.org/docs/opus_in_isobmff.html#4.3.2
+    static opus(track) {
+        var audiosamplerate = track.audiosamplerate;
+        return MP4.box(
+            MP4.types.Opus,
+            new Uint8Array([
+                0x00, 0x00, 0x00, // reserved
+                0x00, 0x00, 0x00, // reserved
+                0x00, 0x01, // data_reference_index
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, // reserved
+                0x00, track.channelCount, // channelcount
+                0x00, 0x10, // sampleSize:16bits
+                0x00, 0x00, // pre_defined
+                0x00, 0x00, // reserved2
+                (audiosamplerate >> 8) & 0xFF,
+                audiosamplerate & 0xff, //
+                0x00, 0x00]),
+            MP4.dops(track));
+    }
+
+    static dops(track) {
+        var audiosamplerate = track.audiosamplerate;
+        var preskip = audiosamplerate * (80 / 1000.0)
+        return MP4.box(MP4.types.dOps, new Uint8Array([
+            0x00, // version
+            track.channelCount, // output channel count
+            (preskip >> 8) & 0xFF, preskip & 0xff, // preskip
+            0x00, 0x00, (audiosamplerate >> 8) & 0xFF, audiosamplerate & 0xff, // input sample rate
+            0x00, 0x00, // output gain
+            0x00 // channel mapping family
+        ]));
+    }
+
     static stsd(track) {
         if (track.type === 'audio') {
-            return MP4.box(MP4.types.stsd, MP4.STSD, MP4.mp4a(track));
+            if (track.codec.startsWith('mp4a')) {
+                return MP4.box(MP4.types.stsd, MP4.STSD, MP4.mp4a(track));
+            } else if (track.codec.startsWith('opus')) {
+                return MP4.box(MP4.types.stsd, MP4.STSD, MP4.opus(track));
+            } else {
+                debug.error('Unknown track codec ' + track.codec);
+            }
         } else {
             return MP4.box(MP4.types.stsd, MP4.STSD, MP4.avc1(track));
         }

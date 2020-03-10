@@ -1,6 +1,9 @@
 import * as debug from '../util/debug';
 import { MP4 } from '../util/mp4-generator.js';
+import { AACParser } from '../parsers/aac.js';
+import { OpusParser } from '../parsers/opus.js';
 import { AACRemuxer } from '../remuxer/aac.js';
+import { OpusRemuxer } from '../remuxer/opus.js';
 import { H264Remuxer } from '../remuxer/h264.js';
 import { appendByteArray, secToTime } from '../util/utils.js';
 import Event from '../util/event';
@@ -15,14 +18,21 @@ export default class RemuxController extends Event {
         this.mediaDuration = streaming ? Infinity : 1000;
     }
 
-    addTrack(type) {
+    addTrack(type, audioCodec) {
         if (type === 'video' || type === 'both') {
             this.tracks.video = new H264Remuxer();
             this.trackTypes.push('video');
         }
         if (type === 'audio' || type === 'both') {
-            this.tracks.audio = new AACRemuxer();
-            this.trackTypes.push('audio');
+            if (audioCodec === AACParser.codec) {
+                this.tracks.audio = new AACRemuxer();
+                this.trackTypes.push('audio');
+            } else if (audioCodec === OpusParser.codec) {
+                this.tracks.audio = new OpusRemuxer();
+                this.trackTypes.push('audio');
+            } else {
+                debug.error('Unknown audio codev audioCodec');
+            }
         }
     }
 

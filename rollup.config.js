@@ -17,7 +17,7 @@ export default {
             file: 'dist/jmuxer.min.js',
             format: 'umd',
             name: 'JMuxer',
-            sourcemap: false
+            sourcemap: true
         }
     ],
     plugins: [
