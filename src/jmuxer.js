@@ -27,7 +27,9 @@ export default class JMuxmer extends Event {
             onReady: null, // function called when MSE is ready to accept frames
             fps: 30,
             debug: false,
-            audioCodec: AACParser.codec
+            audioCodec: AACParser.codec,
+            onData: undefined,
+            mp4Type: 'fragmented'
         };
         this.options = Object.assign({}, defaults, options);
 
@@ -54,7 +56,7 @@ export default class JMuxmer extends Event {
         }
 
         this.setupMSE();
-        this.remuxController = new RemuxController(this.options.clearBuffer); 
+        this.remuxController = new RemuxController(this.options.clearBuffer, this.options.mp4Type); 
         this.remuxController.addTrack(this.options.mode, this.options.audioCodec);
         
 
@@ -287,6 +289,10 @@ export default class JMuxmer extends Event {
     }
 
     onBuffer(data) {
+        if (this.options.onData) {
+            this.options.onData(data.payload, data.type);
+        }
+
         if (this.bufferControllers && this.bufferControllers[data.type]) {
             this.bufferControllers[data.type].feed(data.payload);
         }

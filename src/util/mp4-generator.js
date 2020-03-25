@@ -13,6 +13,8 @@ export class MP4 {
             btrt: [],
             dinf: [],
             dref: [],
+            edts: [],
+            elst: [],
             esds: [],
             ftyp: [],
             hdlr: [],
@@ -177,8 +179,8 @@ export class MP4 {
         return MP4.box(MP4.types.mdhd, new Uint8Array([
             0x00, // version 0
             0x00, 0x00, 0x00, // flags
-            0x00, 0x00, 0x00, 0x02, // creation_time
-            0x00, 0x00, 0x00, 0x03, // modification_time
+            0x00, 0x00, 0x00, 0x00, // creation_time
+            0x00, 0x00, 0x00, 0x00, // modification_time
             (timescale >> 24) & 0xFF,
             (timescale >> 16) & 0xFF,
             (timescale >> 8) & 0xFF,
@@ -188,7 +190,7 @@ export class MP4 {
             (duration >> 8) & 0xFF,
             duration & 0xFF, // duration
             0x55, 0xc4, // 'und' language (undetermined)
-            0x00, 0x00,
+            0x00, 0x00, // quality
         ]));
     }
 
@@ -249,8 +251,8 @@ export class MP4 {
             bytes = new Uint8Array([
                 0x00, // version 0
                 0x00, 0x00, 0x00, // flags
-                0x00, 0x00, 0x00, 0x01, // creation_time
-                0x00, 0x00, 0x00, 0x02, // modification_time
+                0x00, 0x00, 0x00, 0x00, // creation_time
+                0x00, 0x00, 0x00, 0x00, // modification_time
                 (timescale >> 24) & 0xFF,
                 (timescale >> 16) & 0xFF,
                 (timescale >> 8) & 0xFF,
@@ -468,7 +470,7 @@ export class MP4 {
 
     static dops(track) {
         var audiosamplerate = track.audiosamplerate;
-        var preskip = audiosamplerate * (80 / 1000.0)
+        var preskip = audiosamplerate * (80 / 1000.0);
         return MP4.box(MP4.types.dOps, new Uint8Array([
             0x00, // version
             track.channelCount, // output channel count
@@ -578,6 +580,24 @@ export class MP4 {
         return MP4.box(MP4.types.trak, MP4.tkhd(track), MP4.mdia(track));
     }
 
+    static edts(track) {
+        return MP4.box(MP4.types.edts,
+            MP4.box(MP4.types.elst), new Uint8Array([
+                0x00, // version 0
+                0x00, 0x00, 0x00, // flags
+                0x00, 0x00, 0x00, 0x01, // number of entries
+                (track.duration >>> 24) & 0xFF,
+                (track.duration >>> 16) & 0xFF,
+                (track.duration >>> 8) & 0xFF,
+                track.duration & 0xFF, // track duration
+                (track.startTime >>> 24) & 0xFF,
+                (track.startTime >>> 16) & 0xFF,
+                (track.startTime >>> 8) & 0xFF,
+                track.startTime & 0xFF, // track start
+                0x00, 0x01, 0x00, 0x00, // 1.0 rate
+            ]));
+    }
+
     static trex(track) {
         var id = track.id;
         return MP4.box(MP4.types.trex, new Uint8Array([
@@ -658,6 +678,15 @@ export class MP4 {
         result = new Uint8Array(MP4.FTYP.byteLength + movie.byteLength);
         result.set(MP4.FTYP);
         result.set(movie, MP4.FTYP.byteLength);
+        return result;
+    }
+
+    static initSegmentMin(tracks, duration, timescale) {
+        if (!MP4.types) {
+            MP4.init();
+        }
+        let result = new Uint8Array(MP4.FTYP.byteLength);
+        result.set(MP4.FTYP);
         return result;
     }
 }
